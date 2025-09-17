@@ -1,116 +1,87 @@
-
 const blessed = require('blessed');
 const { spawn } = require('child_process');
-const fs = require('fs');
 const { showSettingsScreen, getSettings } = require('./settings');
 const { showTorrentScreen } = require('./torrent');
 
 // Create a screen object.
 const screen = blessed.screen({
   smartCSR: true,
-  title: 'ytdl-tui'
+  title: 'ytdl-tui',
+  fullUnicode: true // For better rendering of some characters
 });
 
-// Create a box for the main title.
-const titleBox = blessed.box({
-  parent: screen,
-  top: 0,
-  left: 'center',
-  width: '50%',
-  height: 'shrink',
-  content: '{bold}{cyan-fg}ytdl-tui{/cyan-fg}{/bold}',
-  tags: true,
-  border: {
-    type: 'line'
-  },
-  style: {
-    fg: 'white',
-    border: {
-      fg: '#f0f0f0'
-    }
-  }
-});
-
-const mainLayout = blessed.layout({
+// --- Global Status and Log Boxes ---
+const globalLogBox = blessed.log({
     parent: screen,
-    top: 5,
-    left: 'center',
-    width: '95%',
-    height: '80%',
-});
-
-const urlInput = blessed.textbox({
-    parent: mainLayout,
-    name: 'urlInput',
-    top: 0,
-    left: 0,
-    height: 3,
-    width: '100%',
-    keys: true,
-    mouse: true,
-    inputOnFocus: true,
-    border: {
-        type: 'line'
-    },
-    style: {
-        fg: 'white',
-        border: {
-            fg: 'cyan'
-        },
-        focus: {
-            border: {
-                fg: 'lime'
-            }
-        }
-    }
-});
-
-const progressBar = blessed.progressbar({
-    parent: mainLayout,
-    top: 4,
-    left: 0,
-    width: '100%',
-    height: 1,
-    pch: '━',
-    style: {
-        bar: {
-            bg: 'blue'
-        },
-        bg: 'black'
-    },
-    border: {
-        type: 'line'
-    },
-    hidden: true // Initially hidden
-});
-
-const logBox = blessed.log({
-    parent: mainLayout,
-    top: 6, // Adjusted position below progress bar
-    left: 0,
-    width: '100%',
-    height: '100%-12', // Adjusted height
-    border: {
-        type: 'line'
-    },
-    style: {
-        fg: 'white',
-        border: {
-            fg: 'cyan'
-        }
-    },
-    label: 'Log'
-});
-
-const menu = blessed.list({
-    parent: mainLayout,
     bottom: 0,
     left: 0,
     width: '100%',
-    height: 3,
-    items: ['Download', 'Settings', 'Torrent', 'Quit'],
-    keys: true,
-    mouse: true,
+    height: 5,
+    border: {
+        type: 'line'
+    },
+    style: {
+        fg: 'white',
+        border: {
+            fg: '#888'
+        }
+    },
+    label: ' Global Log ',
+    tags: true,
+    scrollable: true,
+    alwaysScroll: true,
+    scrollbar: {
+        ch: ' ',
+        inverse: true
+    }
+});
+
+const statusOverlay = blessed.box({
+    parent: screen,
+    top: 1,
+    right: 1,
+    width: 40,
+    height: 5,
+    border: {
+        type: 'line'
+    },
+    style: {
+        fg: 'white',
+        border: {
+            fg: 'yellow'
+        }
+    },
+    label: ' Status ',
+    tags: true,
+    hidden: true // Initially hidden
+});
+
+// Helper to update status overlay
+const updateStatusOverlay = (message, hide = false) => {
+    statusOverlay.setContent(message);
+    if (hide) {
+        statusOverlay.hide();
+    } else {
+        statusOverlay.show();
+    }
+    screen.render();
+};
+
+// --- Main Layout --- 
+const mainContainer = blessed.box({
+    parent: screen,
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%-5', // Account for globalLogBox
+});
+
+const leftPanel = blessed.box({
+    parent: mainContainer,
+    top: 0,
+    left: 0,
+    width: 25,
+    height: '100%',
     border: {
         type: 'line'
     },
@@ -118,134 +89,268 @@ const menu = blessed.list({
         fg: 'white',
         border: {
             fg: 'cyan'
-        },
+        }
+    },
+    label: ' Menu '
+});
+
+const contentPanel = blessed.box({
+    parent: mainContainer,
+    top: 0,
+    left: 25,
+    width: '100%-25',
+    height: '100%',
+    border: {
+        type: 'line'
+    },
+    style: {
+        fg: 'white',
+        border: {
+            fg: 'blue'
+        }
+    },
+    label: ' Content '
+});
+
+// --- Main Menu ---
+const menu = blessed.list({
+    parent: leftPanel,
+    top: 'center',
+    left: 1,
+    width: '100%-2',
+    height: 'shrink',
+    items: ['Download', 'Settings', 'Torrent', 'Quit'],
+    keys: true,
+    mouse: true,
+    vi: true,
+    style: {
+        fg: 'white
         selected: {
             bg: 'blue'
         }
     }
 });
 
+// --- Download Screen Function ---
+const showDownloadScreen = () => {
+    contentPanel.children.forEach(child => child.destroy()); // Clear content
+
+    const downloadForm = blessed.form({
+        parent: contentPanel,
+        keys: true,
+        mouse: true,
+        left: 0,
+        top: 0,
+        width: '100%',
+        height: '100%',
+        content: 'Download Video/Audio',
+        scrollable: true,
+        alwaysScroll: true,
+        scrollbar: {
+            ch: ' ',
+            inverse: true
+        }
+    });
+
+    blessed.text({
+        parent: downloadForm,
+        top: 2,
+        left: 2,
+        content: 'URL:',
+        style: { fg: 'white' }
+    });
+    const urlInput = blessed.textbox({
+        parent: downloadForm,
+        top: 2,
+        left: 7,
+        height: 1,
+        width: '80%',
+        value: '',
+        keys: true,
+        mouse: true,
+        inputOnFocus: true,
+        style: {
+            bg: 'grey',
+            fg: 'white',
+            focus: { bg: 'blue' }
+        }
+    });
+
+    const downloadButton = blessed.button({
+        parent: downloadForm,
+        mouse: true,
+        keys: true,
+        shrink: true,
+        padding: {
+            left: 1,
+            right: 1
+        },
+        top: 4,
+        left: 2,
+        name: 'download',
+        content: 'Download',
+        style: {
+            bg: 'green',
+            fg: 'white',
+            focus: { bg: 'lightgreen' },
+            hover: { bg: 'lightgreen' }
+        }
+    });
+
+    const downloadProgressBar = blessed.progressbar({
+        parent: downloadForm,
+        top: 6,
+        left: 2,
+        width: '90%',
+        height: 1,
+        pch: '━',
+        style: {
+            bar: {
+                bg: 'blue'
+            },
+            bg: 'black'
+        },
+        border: {
+            type: 'line'
+        },
+        hidden: true // Initially hidden
+    });
+
+    const downloadLogBox = blessed.log({
+        parent: downloadForm,
+        top: 8,
+        left: 2,
+        width: '90%',
+        height: '100%-10',
+        border: {
+            type: 'line'
+        },
+        style: {
+            fg: 'white',
+            border: {
+                fg: 'cyan'
+            }
+        },
+        label: ' Download Log ',
+        scrollable: true,
+        alwaysScroll: true,
+        scrollbar: {
+            ch: ' ',
+            inverse: true
+        }
+    });
+
+    downloadButton.on('press', () => {
+        const url = urlInput.getValue();
+        if (!url) {
+            globalLogBox.log('Please enter a URL first.');
+            return;
+        }
+
+        globalLogBox.log(`Starting download for: ${url}`);
+        downloadProgressBar.show();
+        downloadProgressBar.setProgress(0);
+        updateStatusOverlay('Downloading: 0%');
+        screen.render();
+
+        const settings = getSettings();
+        const ytdlpArgs = [
+            url,
+            '--progress',
+            '--newline',
+            '--no-warnings',
+            '-o', `${settings.downloadPath}/${settings.outputTemplate}`,
+            '-f', settings.format
+        ];
+
+        if (settings.subtitles) {
+            ytdlpArgs.push('--write-subs');
+            ytdlpArgs.push('--all-subs');
+        }
+
+        if (settings.quality && settings.quality !== 'best') {
+            ytdlpArgs.push('-S', `res:${settings.quality.replace('p', '')}`);
+        }
+
+        globalLogBox.log(`Executing: yt-dlp ${ytdlpArgs.join(' ')}`);
+
+        const ytdlp = spawn('yt-dlp', ytdlpArgs);
+
+        ytdlp.stdout.on('data', (data) => {
+            const output = data.toString();
+            downloadLogBox.log(output);
+
+            const progressMatch = output.match(/\s(\d+\.\d+)% of/);
+            if (progressMatch && progressMatch[1]) {
+                const progress = parseFloat(progressMatch[1]);
+                downloadProgressBar.setProgress(progress);
+                updateStatusOverlay(`Downloading: ${progress}%`);
+                screen.render();
+            }
+        });
+
+        ytdlp.stderr.on('data', (data) => {
+            const errorOutput = data.toString();
+            globalLogBox.log(`Error: ${errorOutput}`);
+            downloadLogBox.log(`Error: ${errorOutput}`);
+            updateStatusOverlay(`Download Error!`, true);
+            screen.render();
+        });
+
+        ytdlp.on('close', (code) => {
+            if (code === 0) {
+                globalLogBox.log('Download complete!');
+                downloadProgressBar.setProgress(100);
+                updateStatusOverlay('Download Complete!', true);
+            } else {
+                globalLogBox.log(`yt-dlp exited with code ${code}`);
+                updateStatusOverlay(`Download Failed (Code: ${code})`, true);
+            }
+            downloadProgressBar.hide();
+            screen.render();
+        });
+    });
+
+    downloadForm.focus();
+    screen.render();
+};
+
+// --- Menu Selection Logic ---
 menu.on('select', (item) => {
     const selected = item.getText();
     if (selected === 'Quit') {
         return process.exit(0);
     }
     if (selected === 'Download') {
-        const url = urlInput.getValue();
-        if (url) {
-            logBox.log(`Starting download for: ${url}`);
-            progressBar.show();
-            progressBar.setProgress(0);
-            screen.render();
-
-            const settings = getSettings();
-
-            // Ensure the download directory exists
-            if (!fs.existsSync(settings.downloadPath)) {
-                fs.mkdirSync(settings.downloadPath, { recursive: true });
-            }
-
-            const ytdlpArgs = [
-                url,
-                '--progress',
-                '--newline',
-                '--no-warnings',
-                '-o', `${settings.downloadPath}/${settings.outputTemplate}`,
-                '-f', settings.format
-            ];
-
-            if (settings.subtitles) {
-                ytdlpArgs.push('--write-subs');
-                ytdlpArgs.push('--all-subs');
-            }
-
-            // Add quality if specified and not 'best' (which is default for -f bestvideo+bestaudio/best)
-            if (settings.quality && settings.quality !== 'best') {
-                // This part might need more sophisticated handling depending on yt-dlp's quality options
-                // For simplicity, we'll just append it if it's not 'best'
-                // A more robust solution would parse available formats and select based on quality
-                ytdlpArgs.push('-S', `res:${settings.quality.replace('p', '')}`);
-            }
-
-            logBox.log(`Executing: yt-dlp ${ytdlpArgs.join(' ')}`);
-
-            const ytdlp = spawn('yt-dlp', ytdlpArgs);
-
-            ytdlp.stdout.on('data', (data) => {
-                const output = data.toString();
-                logBox.log(output);
-
-                // Regex to parse yt-dlp progress output
-                const progressMatch = output.match(/\s(\d+\.\d+)% of/);
-                if (progressMatch && progressMatch[1]) {
-                    const progress = parseFloat(progressMatch[1]);
-                    progressBar.setProgress(progress);
-                    screen.render();
-                }
-            });
-
-            ytdlp.stderr.on('data', (data) => {
-                logBox.log(`Error: ${data.toString()}`);
-                screen.render();
-            });
-
-            ytdlp.on('close', (code) => {
-                if (code === 0) {
-                    logBox.log('Download complete!');
-                    progressBar.setProgress(100);
-                } else {
-                    logBox.log(`yt-dlp exited with code ${code}`);
-                }
-                progressBar.hide();
-                screen.render();
-            });
-        } else {
-            logBox.log('Please enter a URL first.');
-        }
+        showDownloadScreen();
     }
     if (selected === 'Settings') {
-        showSettingsScreen(screen, logBox, () => {
+        contentPanel.children.forEach(child => child.destroy()); // Clear content
+        showSettingsScreen(contentPanel, globalLogBox, () => {
             // Callback after settings screen is closed
             screen.render(); // Re-render main screen
-            setFocus(); // Restore focus to main components
+            menu.focus(); // Restore focus to main menu
         });
     }
     if (selected === 'Torrent') {
-        showTorrentScreen(screen, logBox, () => {
+        contentPanel.children.forEach(child => child.destroy()); // Clear content
+        showTorrentScreen(contentPanel, globalLogBox, updateStatusOverlay, () => {
             // Callback after torrent screen is closed
             screen.render(); // Re-render main screen
-            setFocus(); // Restore focus to main components
+            menu.focus(); // Restore focus to main menu
         });
     }
 });
 
-// Focus management
-const components = [urlInput, menu];
-let focusIndex = 0;
-
-const setFocus = () => {
-    components[focusIndex].focus();
-    screen.render();
-};
-
-screen.key(['tab'], () => {
-    focusIndex = (focusIndex + 1) % components.length;
-    setFocus();
-});
-
-screen.key(['S-tab'], () => {
-    focusIndex = (focusIndex - 1 + components.length) % components.length;
-    setFocus();
-});
-
-
-// Quit on Escape, q, or Control-C.
+// --- Initial Setup and Keybindings ---
 screen.key(['escape', 'q', 'C-c'], function(ch, key) {
   return process.exit(0);
 });
 
-// Initial focus
-setFocus();
-
-// Render the screen.
+// Initial screen setup
+screen.append(mainContainer);
+screen.append(globalLogBox);
+screen.append(statusOverlay);
+menu.focus();
+showDownloadScreen(); // Show download screen by default
 screen.render();
