@@ -37,15 +37,18 @@ const saveSettings = () => {
 // Initialize settings on module load
 loadSettings();
 
-const showSettingsScreen = (screen, logBox, onSettingsSaved) => {
+const showSettingsScreen = (contentPanel, globalLogBox, onSettingsSaved) => {
+    // Clear contentPanel before rendering settings form
+    contentPanel.children.forEach(child => child.destroy());
+
     const settingsForm = blessed.form({
-        parent: screen,
+        parent: contentPanel,
         keys: true,
         mouse: true,
-        left: 'center',
-        top: 'center',
-        width: '80%',
-        height: '80%',
+        left: 0,
+        top: 0,
+        width: '100%',
+        height: '100%',
         border: {
             type: 'line'
         },
@@ -217,9 +220,9 @@ const showSettingsScreen = (screen, logBox, onSettingsSaved) => {
         currentSettings.subtitles = subtitlesCheckbox.checked;
         currentSettings.outputTemplate = outputTemplateInput.getValue();
         saveSettings();
-        logBox.log('Settings saved successfully!');
+        globalLogBox.log('Settings saved successfully!');
         settingsForm.destroy();
-        screen.render();
+        // screen.render(); // Render will be handled by the callback
         if (onSettingsSaved) onSettingsSaved();
     });
 
@@ -229,13 +232,13 @@ const showSettingsScreen = (screen, logBox, onSettingsSaved) => {
 
     settingsForm.key(['escape'], () => {
         settingsForm.destroy();
-        screen.render();
+        // screen.render(); // Render will be handled by the callback
         if (onSettingsSaved) onSettingsSaved(); // Call callback even if cancelled
     });
 
-    screen.append(settingsForm);
+    contentPanel.append(settingsForm);
     downloadPathInput.focus();
-    screen.render();
+    contentPanel.screen.render(); // Render the content panel
 };
 
 const getSettings = () => currentSettings;
