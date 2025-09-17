@@ -62,12 +62,31 @@ const urlInput = blessed.textbox({
     }
 });
 
-const logBox = blessed.log({
+const progressBar = blessed.progressbar({
     parent: mainLayout,
     top: 4,
     left: 0,
     width: '100%',
-    height: '100%-10',
+    height: 1,
+    pch: '━',
+    style: {
+        bar: {
+            bg: 'blue'
+        },
+        bg: 'black'
+    },
+    border: {
+        type: 'line'
+    },
+    hidden: true // Initially hidden
+});
+
+const logBox = blessed.log({
+    parent: mainLayout,
+    top: 6, // Adjusted position below progress bar
+    left: 0,
+    width: '100%',
+    height: '100%-12', // Adjusted height
     border: {
         type: 'line'
     },
@@ -112,7 +131,47 @@ menu.on('select', (item) => {
         const url = urlInput.getValue();
         if (url) {
             logBox.log(`Starting download for: ${url}`);
-            // I will replace this with actual yt-dlp call later
+                        logBox.log(`Starting download for: ${url}`);
+            progressBar.show();
+            progressBar.setProgress(0);
+            screen.render();
+
+            const ytdlp = spawn('yt-dlp', [
+                url,
+                '--progress',
+                '--newline',
+                '--no-warnings',
+                '--output', './downloads/%(title)s.%(ext)s' // Default output path
+            ]);
+
+            ytdlp.stdout.on('data', (data) => {
+                const output = data.toString();
+                logBox.log(output);
+
+                // Regex to parse yt-dlp progress output
+                const progressMatch = output.match(/\s(\d+\.\d+)% of/);
+                if (progressMatch && progressMatch[1]) {
+                    const progress = parseFloat(progressMatch[1]);
+                    progressBar.setProgress(progress);
+                    screen.render();
+                }
+            });
+
+            ytdlp.stderr.on('data', (data) => {
+                logBox.log(`Error: ${data.toString()}`);
+                screen.render();
+            });
+
+            ytdlp.on('close', (code) => {
+                if (code === 0) {
+                    logBox.log('Download complete!');
+                    progressBar.setProgress(100);
+                } else {
+                    logBox.log(`yt-dlp exited with code ${code}`);
+                }
+                progressBar.hide();
+                screen.render();
+            });
         } else {
             logBox.log('Please enter a URL first.');
         }
