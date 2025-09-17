@@ -20,6 +20,7 @@
   "dependencies": {
     "blessed": "^0.1.81",
     "chalk": "^5.6.2",
-    "prompts": "^2.4.2"
+    "prompts": "^2.4.2",
+    "webtorrent": "^2.8.4"
   }
 }
