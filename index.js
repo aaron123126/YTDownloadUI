@@ -1,6 +1,7 @@
 
 const blessed = require('blessed');
 const { spawn } = require('child_process');
+const fs = require('fs');
 const { showSettingsScreen, getSettings } = require('./settings');
 const { showTorrentScreen } = require('./torrent');
 
@@ -138,6 +139,12 @@ menu.on('select', (item) => {
             screen.render();
 
             const settings = getSettings();
+
+            // Ensure the download directory exists
+            if (!fs.existsSync(settings.downloadPath)) {
+                fs.mkdirSync(settings.downloadPath, { recursive: true });
+            }
+
             const ytdlpArgs = [
                 url,
                 '--progress',
