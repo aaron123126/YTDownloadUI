@@ -52,7 +52,7 @@ const showTorrentScreen = (screen, logBox, onBack) => {
         inputOnFocus: true,
         style: {
             bg: 'grey',
-            fg: 'white
+            fg: 'white',
             focus: { bg: 'blue' }
         }
     });
@@ -66,8 +66,8 @@ const showTorrentScreen = (screen, logBox, onBack) => {
             left: 1,
             right: 1
         },
-        top: 4,
-        left: 2,
+        top: 2,
+        left: '89%',
         name: 'browse',
         content: 'Browse',
         style: {
@@ -76,6 +76,64 @@ const showTorrentScreen = (screen, logBox, onBack) => {
             focus: { bg: 'lightblue' },
             hover: { bg: 'lightblue' }
         }
+    });
+
+    const seedingStatusBox = blessed.box({
+        parent: torrentForm,
+        top: 6,
+        left: 2,
+        width: '96%',
+        height: 5,
+        border: {
+            type: 'line'
+        },
+        style: {
+            fg: 'white',
+            border: {
+                fg: 'green'
+            }
+        },
+        label: 'Seeding Status',
+        hidden: true
+    });
+
+    browseButton.on('press', () => {
+        const fileManager = blessed.filemanager({
+            parent: screen,
+            border: 'line',
+            style: {
+                bg: 'black',
+                fg: 'white',
+                border: { fg: 'green' },
+                selected: { bg: 'green' }
+            },
+            height: '70%',
+            width: '70%',
+            top: 'center',
+            left: 'center',
+            label: 'Select File/Directory',
+            keys: true,
+            mouse: true,
+            vi: true
+        });
+
+        fileManager.on('select', (item) => {
+            filePathInput.setValue(item);
+            fileManager.destroy();
+            screen.render();
+            torrentForm.focus(); // Return focus to the form
+        });
+
+        fileManager.on('cancel', () => {
+            fileManager.destroy();
+            screen.render();
+            torrentForm.focus(); // Return focus to the form
+        });
+
+        screen.append(fileManager);
+        fileManager.refresh();
+        fileManager.focus();
+        screen.render();
     });
 
     const createSeedButton = blessed.button({
@@ -88,7 +146,7 @@ const showTorrentScreen = (screen, logBox, onBack) => {
             right: 1
         },
         top: 4,
-        left: 12,
+        left: 2,
         name: 'createSeed',
         content: 'Create and Seed Torrent',
         style: {
@@ -134,6 +192,9 @@ const showTorrentScreen = (screen, logBox, onBack) => {
         }
 
         logBox.log(`Attempting to create and seed torrent for: ${filePath}`);
+        seedingStatusBox.setContent('Initializing WebTorrent client...');
+        seedingStatusBox.show();
+        screen.render();
 
         if (!client) {
             client = new WebTorrent();
@@ -144,19 +205,33 @@ const showTorrentScreen = (screen, logBox, onBack) => {
             logBox.log(`Magnet URI: ${torrent.magnetURI}`);
             logBox.log(`Torrent file saved to: ${torrent.path}`);
 
-            // Display seeding progress (placeholder for now)
-            logBox.log('Seeding started...');
-            logBox.log(`Download speed: ${torrent.downloadSpeed}`);
-            logBox.log(`Upload speed: ${torrent.uploadSpeed}`);
-            logBox.log(`Peers: ${torrent.numPeers}`);
+            seedingStatusBox.setContent(
+                `Torrent: ${torrent.name}\n` +
+                `Status: Seeding (0% uploaded)\n` +
+                `Upload Speed: 0 B/s | Peers: 0`
+            );
+            screen.render();
 
             torrent.on('upload', () => {
-                logBox.log(`Uploading: ${torrent.uploadSpeed / 1000} KB/s, Peers: ${torrent.numPeers}`);
+                const uploadSpeed = (torrent.uploadSpeed / 1024).toFixed(2);
+                const progress = (torrent.progress * 100).toFixed(2);
+                seedingStatusBox.setContent(
+                    `Torrent: ${torrent.name}\n` +
+                    `Status: Seeding (${progress}% uploaded)\n` +
+                    `Upload Speed: ${uploadSpeed} KB/s | Peers: ${torrent.numPeers}`
+                );
                 screen.render();
             });
 
             torrent.on('error', (err) => {
                 logBox.log(`Torrent error: ${err.message}`);
+                seedingStatusBox.setContent(`Error: ${err.message}`);
+                screen.render();
+            });
+
+            torrent.on('done', () => {
+                logBox.log('Torrent seeding complete (all pieces uploaded).');
+                seedingStatusBox.setContent('Seeding complete!');
                 screen.render();
             });
 
