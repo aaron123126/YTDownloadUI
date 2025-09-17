@@ -1,5 +1,6 @@
 
 const blessed = require('blessed');
+const { spawn } = require('child_process');
 
 // Create a screen object.
 const screen = blessed.screen({
@@ -99,6 +100,25 @@ const menu = blessed.list({
         selected: {
             bg: 'blue'
         }
+    }
+});
+
+menu.on('select', (item) => {
+    const selected = item.getText();
+    if (selected === 'Quit') {
+        return process.exit(0);
+    }
+    if (selected === 'Download') {
+        const url = urlInput.getValue();
+        if (url) {
+            logBox.log(`Starting download for: ${url}`);
+            // I will replace this with actual yt-dlp call later
+        } else {
+            logBox.log('Please enter a URL first.');
+        }
+    }
+    if (selected === 'Settings') {
+        logBox.log('Settings will be implemented later.');
     }
 });
 
