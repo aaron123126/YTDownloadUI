@@ -10,7 +10,7 @@ Always Update the README.md file for GitHub, IMPORTANT: write that file in a per
 Never comment your  code!
 
 Project ToDos:
-- Implement torrenting feature (create torrents, select files, real-time seeding progress).
+- None (Core features implemented).
 
 Overall Project Goal:
 To create a nice, interactive CLI/TUI for the python module yt-dlp, with features like navigation, animations, progress bars, and many settings. The UI should be visually appealing with colors, menus, and rounded corners, built using Node.js.
@@ -26,4 +26,10 @@ Current Project Status:
 - Settings are loaded from and saved to a `.ytdl-tui-settings.json` file in the user's home directory.
 - Settings UI (`showSettingsScreen`) implemented using `blessed` forms and input fields.
 - `index.js` now integrates the settings module, using saved settings for `yt-dlp` arguments and calling the settings UI.
-- Comprehensive `README.md` created and updated.
+- Torrenting feature implemented:
+    - Added "Torrent" option to the main menu.
+    - `torrent.js` module created for torrent operations.
+    - UI for torrent operations includes a file path input, a browse button using `blessed.filemanager` for file/directory selection, and a "Create and Seed Torrent" button.
+    - Dynamic import of `webtorrent` implemented in `torrent.js` to resolve `ERR_REQUIRE_ASYNC_MODULE`.
+    - Real-time seeding progress (upload speed, peers) displayed in a dedicated status box.
+- Comprehensive `README.md` created and updated to reflect all features.
