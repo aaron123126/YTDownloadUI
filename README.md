@@ -16,20 +16,11 @@
 *   **Torrenting (Seeding):** Create and seed torrents directly from the TUI with real-time progress updates.
 *   **Clean Log Output:** View detailed `yt-dlp` messages and application status.
 
-## Prerequisites
-
-Before you can run `ytdl-tui`, ensure you have the following installed on your system:
-
-*   **Node.js & npm:** `ytdl-tui` is a Node.js application. You can download them from [nodejs.org](https://nodejs.org/).
-*   **yt-dlp:** The core video downloading engine. Make sure `yt-dlp` is installed and accessible in your system's PATH. You can find installation instructions on the [yt-dlp GitHub page](https://github.com/yt-dlp/yt-dlp).
-
-    *Example installation for Linux/macOS:*
-    ```bash
-    sudo wget https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -O /usr/local/bin/yt-dlp
-    sudo chmod a+rx /usr/local/bin/yt-dlp  # Give execute permissions
-    ```
-
 ## Installation
+
+The recommended way to install ytdl-tui is by using the provided installation scripts. These scripts will automatically handle dependencies (like `yt-dlp` and `Node.js`) and add the `ytd` command to your system's path, making it runnable from anywhere.
+
+### For Linux
 
 1.  **Clone the repository:**
     ```bash
@@ -37,17 +28,38 @@ Before you can run `ytdl-tui`, ensure you have the following installed on your s
     cd YTDownloadUI
     ```
 
-2.  **Install Node.js dependencies:**
+2.  **Run the installation script:**
     ```bash
-    npm install
+    # Make the script executable
+    chmod +x install.sh
+    # Run with sudo for system-wide installation
+    sudo ./install.sh
     ```
+    The script will install the application to `/usr/local/lib/ytdl` and place the `ytd` command in `/usr/local/bin`. To remove the application, you can run `sudo ./uninstall.sh`.
+
+### For Windows
+
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/aaron123126/YTDownloadUI.git
+    cd YTDownloadUI
+    ```
+
+2.  **Run the installation script:**
+    *   Right-click on the PowerShell icon and select **"Run as Administrator"**.
+    *   Navigate to the repository directory (`cd YTDownloadUI`).
+    *   Run the installer script. You may need to bypass the PowerShell execution policy.
+    ```powershell
+    PowerShell -ExecutionPolicy Bypass -File .\install.ps1
+    ```
+    The script will install the application to `C:\Program Files\ytdl-tui` and add its `bin` directory to the system's PATH. To remove the application, run `uninstall.ps1` (also as Administrator).
 
 ## Usage
 
-To start the `ytdl-tui` application, run:
+After a successful installation, open a **new** terminal or PowerShell window (to ensure the updated PATH is loaded) and simply run:
 
 ```bash
-node index.js
+ytd
 ```
 
 ### Navigating the TUI
