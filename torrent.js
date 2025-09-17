@@ -2,6 +2,7 @@
 const blessed = require('blessed');
 const path = require('path');
 const fs = require('fs');
+const WebTorrent = require('webtorrent');
 
 let client = null; // WebTorrent client instance
 
@@ -183,7 +184,7 @@ const showTorrentScreen = (screen, logBox, onBack) => {
         if (onBack) onBack();
     });
 
-    createSeedButton.on('press', async () => {
+    createSeedButton.on('press', () => {
         const filePath = filePathInput.getValue();
         if (!filePath) {
             logBox.log('Please enter a file or directory path to torrent.');
@@ -195,59 +196,51 @@ const showTorrentScreen = (screen, logBox, onBack) => {
         seedingStatusBox.show();
         screen.render();
 
-        try {
-            const WebTorrent = (await import('webtorrent')).default;
-            if (!client) {
-                client = new WebTorrent();
-            }
+        if (!client) {
+            client = new WebTorrent();
+        }
 
-            client.seed(filePath, (torrent) => {
-                logBox.log(`Torrent created: ${torrent.name}`);
-                logBox.log(`Magnet URI: ${torrent.magnetURI}`);
-                logBox.log(`Torrent file saved to: ${torrent.path}`);
+        client.seed(filePath, (torrent) => {
+            logBox.log(`Torrent created: ${torrent.name}`);
+            logBox.log(`Magnet URI: ${torrent.magnetURI}`);
+            logBox.log(`Torrent file saved to: ${torrent.path}`);
 
+            seedingStatusBox.setContent(
+                `Torrent: ${torrent.name}
+` +
+                `Status: Seeding (0% uploaded)
+` +
+                `Upload Speed: 0 B/s | Peers: 0`
+            );
+            screen.render();
+
+            torrent.on('upload', () => {
+                const uploadSpeed = (torrent.uploadSpeed / 1024).toFixed(2);
+                const progress = (torrent.progress * 100).toFixed(2);
                 seedingStatusBox.setContent(
                     `Torrent: ${torrent.name}
 ` +
-                    `Status: Seeding (0% uploaded)
+                    `Status: Seeding (${progress}% uploaded)
 ` +
-                    `Upload Speed: 0 B/s | Peers: 0`
+                    `Upload Speed: ${uploadSpeed} KB/s | Peers: ${torrent.numPeers}`
                 );
                 screen.render();
+            });
 
-                torrent.on('upload', () => {
-                    const uploadSpeed = (torrent.uploadSpeed / 1024).toFixed(2);
-                    const progress = (torrent.progress * 100).toFixed(2);
-                    seedingStatusBox.setContent(
-                        `Torrent: ${torrent.name}
-` +
-                        `Status: Seeding (${progress}% uploaded)
-` +
-                        `Upload Speed: ${uploadSpeed} KB/s | Peers: ${torrent.numPeers}`
-                    );
-                    screen.render();
-                });
-
-                torrent.on('error', (err) => {
-                    logBox.log(`Torrent error: ${err.message}`);
-                    seedingStatusBox.setContent(`Error: ${err.message}`);
-                    screen.render();
-                });
-
-                torrent.on('done', () => {
-                    logBox.log('Torrent seeding complete (all pieces uploaded).');
-                    seedingStatusBox.setContent('Seeding complete!');
-                    screen.render();
-                });
-
+            torrent.on('error', (err) => {
+                logBox.log(`Torrent error: ${err.message}`);
+                seedingStatusBox.setContent(`Error: ${err.message}`);
                 screen.render();
             });
-        } catch (error) {
-            logBox.log(`Failed to initialize WebTorrent: ${error.message}`);
-            seedingStatusBox.setContent(`Error: ${error.message}`);
-            seedingStatusBox.hide();
+
+            torrent.on('done', () => {
+                logBox.log('Torrent seeding complete (all pieces uploaded).');
+                seedingStatusBox.setContent('Seeding complete!');
+                screen.render();
+            });
+
             screen.render();
-        }
+        });
     });
 
     screen.append(torrentForm);
