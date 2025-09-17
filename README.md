@@ -6,13 +6,14 @@
 
 *   **Interactive TUI:** Navigate with keyboard (Tab, Shift+Tab, Arrow Keys) and mouse.
 *   **URL Input:** Easily paste video URLs for download.
-*   **Real-time Progress Bar:** Visual feedback on download progress.
+*   **Real-time Download Progress Bar:** Visual feedback on download progress.
 *   **Configurable Settings:**
     *   Set custom download paths.
     *   Choose desired video/audio formats.
     *   Specify quality preferences.
     *   Option to download subtitles.
     *   Customize output filename template.
+*   **Torrenting (Seeding):** Create and seed torrents directly from the TUI with real-time progress updates.
 *   **Clean Log Output:** View detailed `yt-dlp` messages and application status.
 
 ## Prerequisites
@@ -67,6 +68,13 @@ node index.js
 1.  Navigate to the `Settings` option in the menu and press Enter.
 2.  Adjust your preferred download path, format, quality, subtitle options, and output filename template.
 3.  Press `Save` to apply changes or `Escape` to cancel.
+
+### Creating and Seeding Torrents
+
+1.  Navigate to the `Torrent` option in the menu and press Enter.
+2.  Use the `Browse` button to select a file or directory you wish to share.
+3.  Click `Create and Seed Torrent` to generate a `.torrent` file and start seeding it.
+4.  The seeding status box will show real-time upload speed and peer information.
 
 ## Settings File
 
