@@ -2,19 +2,21 @@
 const blessed = require('blessed');
 const path = require('path');
 const fs = require('fs');
-const WebTorrent = require('webtorrent');
 
 let client = null; // WebTorrent client instance
 
-const showTorrentScreen = (screen, logBox, onBack) => {
+const showTorrentScreen = (contentPanel, globalLogBox, updateStatusOverlay, onBack) => {
+    // Clear contentPanel before rendering torrent form
+    contentPanel.children.forEach(child => child.destroy());
+
     const torrentForm = blessed.form({
-        parent: screen,
+        parent: contentPanel,
         keys: true,
         mouse: true,
-        left: 'center',
-        top: 'center',
-        width: '80%',
-        height: '80%',
+        left: 0,
+        top: 0,
+        width: '100%',
+        height: '100%',
         border: {
             type: 'line'
         },
@@ -99,7 +101,7 @@ const showTorrentScreen = (screen, logBox, onBack) => {
 
     browseButton.on('press', () => {
         const fileManager = blessed.filemanager({
-            parent: screen,
+            parent: contentPanel.screen, // Still parent to the main screen for overlay effect
             border: 'line',
             style: {
                 bg: 'black',
@@ -120,20 +122,20 @@ const showTorrentScreen = (screen, logBox, onBack) => {
         fileManager.on('select', (item) => {
             filePathInput.setValue(item);
             fileManager.destroy();
-            screen.render();
+            contentPanel.screen.render();
             torrentForm.focus(); // Return focus to the form
         });
 
         fileManager.on('cancel', () => {
             fileManager.destroy();
-            screen.render();
+            contentPanel.screen.render();
             torrentForm.focus(); // Return focus to the form
         });
 
-        screen.append(fileManager);
+        contentPanel.screen.append(fileManager);
         fileManager.refresh();
         fileManager.focus();
-        screen.render();
+        contentPanel.screen.render();
     });
 
     const createSeedButton = blessed.button({
@@ -180,72 +182,86 @@ const showTorrentScreen = (screen, logBox, onBack) => {
 
     backButton.on('press', () => {
         torrentForm.destroy();
-        screen.render();
+        contentPanel.screen.render();
         if (onBack) onBack();
     });
 
-    createSeedButton.on('press', () => {
+    createSeedButton.on('press', async () => {
         const filePath = filePathInput.getValue();
         if (!filePath) {
-            logBox.log('Please enter a file or directory path to torrent.');
+            globalLogBox.log('Please enter a file or directory path to torrent.');
             return;
         }
 
-        logBox.log(`Attempting to create and seed torrent for: ${filePath}`);
+        globalLogBox.log(`Attempting to create and seed torrent for: ${filePath}`);
         seedingStatusBox.setContent('Initializing WebTorrent client...');
         seedingStatusBox.show();
-        screen.render();
+        contentPanel.screen.render();
 
-        if (!client) {
-            client = new WebTorrent();
-        }
+        try {
+            const WebTorrent = (await import('webtorrent')).default;
+            if (!client) {
+                client = new WebTorrent();
+            }
 
-        client.seed(filePath, (torrent) => {
-            logBox.log(`Torrent created: ${torrent.name}`);
-            logBox.log(`Magnet URI: ${torrent.magnetURI}`);
-            logBox.log(`Torrent file saved to: ${torrent.path}`);
+            client.seed(filePath, (torrent) => {
+                globalLogBox.log(`Torrent created: ${torrent.name}`);
+                globalLogBox.log(`Magnet URI: ${torrent.magnetURI}`);
+                globalLogBox.log('Torrent file created in a temporary location.');
 
-            seedingStatusBox.setContent(
-                `Torrent: ${torrent.name}
-` +
-                `Status: Seeding (0% uploaded)
-` +
-                `Upload Speed: 0 B/s | Peers: 0`
-            );
-            screen.render();
+                updateStatusOverlay(`Seeding: ${torrent.name}`);
 
-            torrent.on('upload', () => {
-                const uploadSpeed = (torrent.uploadSpeed / 1024).toFixed(2);
-                const progress = (torrent.progress * 100).toFixed(2);
                 seedingStatusBox.setContent(
                     `Torrent: ${torrent.name}
 ` +
-                    `Status: Seeding (${progress}% uploaded)
+                    `Status: Seeding (0% uploaded)
 ` +
-                    `Upload Speed: ${uploadSpeed} KB/s | Peers: ${torrent.numPeers}`
+                    `Upload Speed: 0 B/s | Peers: 0`
                 );
-                screen.render();
-            });
+                contentPanel.screen.render();
 
-            torrent.on('error', (err) => {
-                logBox.log(`Torrent error: ${err.message}`);
-                seedingStatusBox.setContent(`Error: ${err.message}`);
-                screen.render();
-            });
+                torrent.on('upload', () => {
+                    const uploadSpeed = (torrent.uploadSpeed / 1024).toFixed(2);
+                    const progress = (torrent.progress * 100).toFixed(2);
+                    seedingStatusBox.setContent(
+                        `Torrent: ${torrent.name}
+` +
+                        `Status: Seeding (${progress}% uploaded)
+` +
+                        `Upload Speed: ${uploadSpeed} KB/s | Peers: ${torrent.numPeers}`
+                    );
+                    updateStatusOverlay(`Seeding: ${torrent.name} (${uploadSpeed} KB/s)`);
+                    contentPanel.screen.render();
+                });
 
-            torrent.on('done', () => {
-                logBox.log('Torrent seeding complete (all pieces uploaded).');
-                seedingStatusBox.setContent('Seeding complete!');
-                screen.render();
-            });
+                torrent.on('error', (err) => {
+                    globalLogBox.log(`Torrent error: ${err.message}`);
+                    seedingStatusBox.setContent(`Error: ${err.message}`);
+                    updateStatusOverlay(`Seeding Error!`, true);
+                    contentPanel.screen.render();
+                });
 
-            screen.render();
-        });
+                torrent.on('done', () => {
+                    globalLogBox.log('Torrent seeding complete (all pieces uploaded).');
+                    seedingStatusBox.setContent('Seeding complete!');
+                    updateStatusOverlay('Seeding Complete!', true);
+                    contentPanel.screen.render();
+                });
+
+                contentPanel.screen.render();
+            });
+        } catch (error) {
+            globalLogBox.log(`Failed to initialize WebTorrent: ${error.message}`);
+            seedingStatusBox.setContent(`Error: ${error.message}`);
+            seedingStatusBox.hide();
+            updateStatusOverlay(`Torrent Init Error!`, true);
+            contentPanel.screen.render();
+        }
     });
 
-    screen.append(torrentForm);
+    contentPanel.append(torrentForm);
     filePathInput.focus();
-    screen.render();
+    contentPanel.screen.render();
 };
 
 module.exports = {
