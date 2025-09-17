@@ -1,6 +1,7 @@
 
 const blessed = require('blessed');
 const { spawn } = require('child_process');
+const { showSettingsScreen, getSettings } = require('./settings');
 
 // Create a screen object.
 const screen = blessed.screen({
@@ -131,18 +132,36 @@ menu.on('select', (item) => {
         const url = urlInput.getValue();
         if (url) {
             logBox.log(`Starting download for: ${url}`);
-                        logBox.log(`Starting download for: ${url}`);
             progressBar.show();
             progressBar.setProgress(0);
             screen.render();
 
-            const ytdlp = spawn('yt-dlp', [
+            const settings = getSettings();
+            const ytdlpArgs = [
                 url,
                 '--progress',
                 '--newline',
                 '--no-warnings',
-                '--output', './downloads/%(title)s.%(ext)s' // Default output path
-            ]);
+                '-o', `${settings.downloadPath}/${settings.outputTemplate}`,
+                '-f', settings.format
+            ];
+
+            if (settings.subtitles) {
+                ytdlpArgs.push('--write-subs');
+                ytdlpArgs.push('--all-subs');
+            }
+
+            // Add quality if specified and not 'best' (which is default for -f bestvideo+bestaudio/best)
+            if (settings.quality && settings.quality !== 'best') {
+                // This part might need more sophisticated handling depending on yt-dlp's quality options
+                // For simplicity, we'll just append it if it's not 'best'
+                // A more robust solution would parse available formats and select based on quality
+                ytdlpArgs.push('-S', `res:${settings.quality.replace('p', '')}`);
+            }
+
+            logBox.log(`Executing: yt-dlp ${ytdlpArgs.join(' ')}`);
+
+            const ytdlp = spawn('yt-dlp', ytdlpArgs);
 
             ytdlp.stdout.on('data', (data) => {
                 const output = data.toString();
@@ -177,7 +196,11 @@ menu.on('select', (item) => {
         }
     }
     if (selected === 'Settings') {
-        logBox.log('Settings will be implemented later.');
+        showSettingsScreen(screen, logBox, () => {
+            // Callback after settings screen is closed
+            screen.render(); // Re-render main screen
+            setFocus(); // Restore focus to main components
+        });
     }
 });
 
