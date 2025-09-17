@@ -106,7 +106,7 @@ const menu = blessed.list({
     left: 0,
     width: '100%',
     height: 3,
-    items: ['Download', 'Settings', 'Quit'],
+    items: ['Download', 'Settings', 'Torrent', 'Quit'],
     keys: true,
     mouse: true,
     border: {
@@ -201,6 +201,9 @@ menu.on('select', (item) => {
             screen.render(); // Re-render main screen
             setFocus(); // Restore focus to main components
         });
+    }
+    if (selected === 'Torrent') {
+        logBox.log('Torrent feature will be implemented here.');
     }
 });
 
