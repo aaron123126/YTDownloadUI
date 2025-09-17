@@ -18,18 +18,17 @@ To create a nice, interactive CLI/TUI for the python module yt-dlp, with feature
 Other Notes.
 Current Project Status:
 - Initial project setup complete with `package.json`, `node_modules`, and `index.js`.
-- Basic `blessed` TUI scaffolding implemented with a title, main layout, URL input, log box, and a main menu.
-- Menu logic implemented for "Download", "Settings", and "Quit" options.
-- Download functionality integrated using `yt-dlp` as a child process.
-- Real-time download progress displayed via a `blessed` progress bar.
-- Settings module (`settings.js`) created to manage configurable options (download path, format, quality, subtitles, output template).
-- Settings are loaded from and saved to a `.ytdl-tui-settings.json` file in the user's home directory.
-- Settings UI (`showSettingsScreen`) implemented using `blessed` forms and input fields.
-- `index.js` now integrates the settings module, using saved settings for `yt-dlp` arguments and calling the settings UI.
+- **UI/UX Refactor (Major Change):**
+    - New panel-based layout: Left panel for main menu, right panel for dynamic content, smaller global log at the bottom.
+    - Dedicated floating status overlay for active operations (download/seeding progress).
+    - Navigation changed from Tab to Arrow Keys for menu selection.
+    - `index.js` refactored to manage the new layout and global status components.
+- Download functionality integrated using `yt-dlp` as a child process, now rendering within the content panel and updating the global log and status overlay.
+- Settings module (`settings.js`) adapted to render its UI within the content panel and use the global log.
 - Torrenting feature implemented:
     - Added "Torrent" option to the main menu.
-    - `torrent.js` module created for torrent operations.
+    - `torrent.js` module created for torrent operations, adapted to render its UI within the content panel and use the global log and status overlay.
     - UI for torrent operations includes a file path input, a browse button using `blessed.filemanager` for file/directory selection, and a "Create and Seed Torrent" button.
     - Dynamic import of `webtorrent` implemented in `torrent.js` to resolve `ERR_REQUIRE_ASYNC_MODULE`.
-    - Real-time seeding progress (upload speed, peers) displayed in a dedicated status box.
+    - Real-time seeding progress (upload speed, peers) displayed in a dedicated status box within the torrent UI and reflected in the global status overlay.
 - Comprehensive `README.md` created and updated to reflect all features.
