@@ -2,6 +2,7 @@
 const blessed = require('blessed');
 const { spawn } = require('child_process');
 const { showSettingsScreen, getSettings } = require('./settings');
+const { showTorrentScreen } = require('./torrent');
 
 // Create a screen object.
 const screen = blessed.screen({
@@ -203,7 +204,11 @@ menu.on('select', (item) => {
         });
     }
     if (selected === 'Torrent') {
-        logBox.log('Torrent feature will be implemented here.');
+        showTorrentScreen(screen, logBox, () => {
+            // Callback after torrent screen is closed
+            screen.render(); // Re-render main screen
+            setFocus(); // Restore focus to main components
+        });
     }
 });
 
